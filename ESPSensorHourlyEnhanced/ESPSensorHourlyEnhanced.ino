@@ -1,4 +1,3 @@
-
 ADC_MODE(ADC_VCC); //vcc read-mode
 
 #include <ESP8266WiFi.h>
@@ -6,16 +5,16 @@ ADC_MODE(ADC_VCC); //vcc read-mode
 extern "C" {
 #include "user_interface.h" // this is for the RTC memory read/write functions
 }
-#define RTCMEMORYSTART 66
-#define RTCMEMORYLEN 125
+#define RTCMEMORYSTART 66 // byte where available memory starts (minimum 64)
+#define RTCMEMORYLEN 125 // byte where available memory ends (maximum 128)
 #define VCC_ADJ  1.0   // measure with your voltmeter and calculate that the number mesured from ESP is correct
 
 #define COLLECT 17
 #define SEND 66
-#define SLEEPTIME 1000000
+#define SENDFLAG False
+#define SLEEPTIME 5*1000000 // time to sleep between measurements in microseconds
 
 #define SPARKFUN_BATTERY 1
-
 
 
 typedef struct {
@@ -41,6 +40,7 @@ WiFiClient client;
 
 void setup() {
   Serial.begin(115200);
+  delay(500);
   Serial.println();
   Serial.println();
   Serial.print("Booted ");
@@ -52,10 +52,10 @@ void setup() {
   switch (rsti->reason) {
 
     case 5:
-      Serial.println(" from RTC-RESET (ResetInfo.reason = 5)");
+      Serial.println("from RTC-RESET (ResetInfo.reason = 5)");
       break;
     case 6:
-      Serial.println(" from POWER-UP (ResetInfo.reason = 6)");
+      Serial.println("from POWER-UP (ResetInfo.reason = 6)");
       rtcManagement.magicNumber = COLLECT;
       rtcManagement.valueCounter = 0;
       break;
@@ -63,13 +63,13 @@ void setup() {
 
   system_get_rst_info();
 
-  buckets = (sizeof(rtcValues) / 4);
+  buckets = (sizeof(rtcValues) / 4); // Number of bucket of 4 bytes for the data structure
   if (buckets == 0) buckets = 1;
-  // Serial.print("Buckets ");
-  //  Serial.println(buckets);
+    Serial.print("Buckets ");
+    Serial.println(buckets);
   system_rtc_mem_read(64, &rtcManagement, 8);
-  // Serial.print("Magic Number ");
-  //  Serial.println(rtcManagement.magicNumber);
+    Serial.print("Magic Number ");
+    Serial.println(rtcManagement.magicNumber);
 
   // initialize System after first start
   if (rtcManagement.magicNumber != COLLECT && rtcManagement.magicNumber != SEND ) {
@@ -116,14 +116,14 @@ void setup() {
     Serial.println();
     WiFi.mode(WIFI_STA);
     Serial.print("Start Sending values. Connecting to ");
-    Serial.println(ASP_ssid);
-    WiFi.begin(ASP_ssid, ASP_password);
+    Serial.println(my_SSID);
+    WiFi.begin(my_SSID, my_PASSWORD);
 
     while (WiFi.status() != WL_CONNECTED) {
       delay(500);
       Serial.print(".");
     }
-    Serial.println("Sending ");
+    Serial.println("\nSending ");
 
     for (i = 0; i <= RTCMEMORYLEN / buckets; i++) {
       int rtcPos = RTCMEMORYSTART + i * buckets;
@@ -151,4 +151,3 @@ void setup() {
 
 
 void loop() {}
-
